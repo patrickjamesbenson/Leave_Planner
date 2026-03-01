@@ -741,24 +741,24 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Work Pattern")
-opts = ["OFF","OFFICE","REMOTE"]
-labels = {"OFF": "Off", "OFFICE": "Office", "REMOTE": "Remote"}
-weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    opts = ["OFF","OFFICE","REMOTE"]
+    labels = {"OFF": "Off", "OFFICE": "Office", "REMOTE": "Remote"}
+    weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 
-# Always render as a vertical list (no columns) for clarity and consistency.
-for i, wd in enumerate(weekdays, start=1):
-    cur = s.roster.get(i, DEFAULT_ROSTER.get(i, 'OFF'))
-    if cur not in opts:
-        cur = 'OFF'
-    s.roster[i] = st.selectbox(
-        wd,
-        opts,
-        index=opts.index(cur),
-        format_func=lambda x: labels[x],
-        key=f"roster_752",
-    )
+    # Always render as a vertical list (no columns) for clarity and consistency.
+    for i, wd in enumerate(weekdays, start=1):
+        cur = s.roster.get(i, DEFAULT_ROSTER.get(i, "OFF"))
+        if cur not in opts:
+            cur = "OFF"
+        s.roster[i] = st.selectbox(
+            wd,
+            opts,
+            index=opts.index(cur),
+            format_func=lambda x: labels[x],
+            key=f"roster_{i}",
+        )
 
-st.divider()
+    st.divider()
 
     st.subheader("Accrual")
     s.pay_frequency = st.selectbox("Pay frequency", ["weekly","fortnightly","monthly"],
