@@ -14,17 +14,10 @@
       "4": "OFF",
       "5": "REMOTE",
       "6": "OFF",
-      "7": "OFF",
-      "1": "OFFICE",
-      "2": "OFFICE",
-      "3": "OFFICE",
-      "4": "OFF",
-      "5": "REMOTE",
-      "6": "OFF",
       "7": "OFF"
     },
     "pay_frequency": "fortnightly",
-    "pay_anchor_end": "2026-02-26",
+    "pay_anchor_end": "2026-02-19",
     "al_method": "pay_period",
     "al_weeks_per_year": 6.0,
     "al_accrued_per_pay_hours": 4.31,
@@ -38,78 +31,6 @@
     "payg_withheld_per_pay": 0.0,
     "other_deductions_per_pay": 0.0
   },
-  "events": [
-    {
-      "id": "10a135b4-99f2-4c29-bad1-ae2fea9687c8",
-      "title": "New Zealand",
-      "kind": "AL",
-      "start_iso": "2026-04-23T00:00:00+10:00",
-      "end_iso": "2026-04-24T00:00:00+10:00",
-      "all_day": true,
-      "meta": {
-        "source": "range"
-      },
-      "gcal_event_id": null
-    },
-    {
-      "id": "6ab762b5-9907-4a8a-8760-5fa2653213fd",
-      "title": "New Zealand",
-      "kind": "AL",
-      "start_iso": "2026-04-24T00:00:00+10:00",
-      "end_iso": "2026-04-25T00:00:00+10:00",
-      "all_day": true,
-      "meta": {
-        "source": "range"
-      },
-      "gcal_event_id": null
-    },
-    {
-      "id": "1eb56711-c639-498f-8aab-e898793e237b",
-      "title": "New Zealand",
-      "kind": "AL",
-      "start_iso": "2026-04-25T00:00:00+10:00",
-      "end_iso": "2026-04-26T00:00:00+10:00",
-      "all_day": true,
-      "meta": {
-        "source": "range"
-      },
-      "gcal_event_id": null
-    },
-    {
-      "id": "1a2794f7-27d1-48e0-8aa8-8b977d337fa7",
-      "title": "New Zealand",
-      "kind": "AL",
-      "start_iso": "2026-04-26T00:00:00+10:00",
-      "end_iso": "2026-04-27T00:00:00+10:00",
-      "all_day": true,
-      "meta": {
-        "source": "range"
-      },
-      "gcal_event_id": null
-    },
-    {
-      "id": "6c55e1a8-94ad-443b-9c65-a9bbe8a88328",
-      "title": "New Zealand",
-      "kind": "AL",
-      "start_iso": "2026-04-27T00:00:00+10:00",
-      "end_iso": "2026-04-28T00:00:00+10:00",
-      "all_day": true,
-      "meta": {
-        "source": "range"
-      },
-      "gcal_event_id": null
-    }
-  ],
-  "action_stack": [
-    {
-      "action_id": "924d303d-7c16-49b3-8bd6-4ba3d45f34d3",
-      "event_ids": [
-        "10a135b4-99f2-4c29-bad1-ae2fea9687c8",
-        "6ab762b5-9907-4a8a-8760-5fa2653213fd",
-        "1eb56711-c639-498f-8aab-e898793e237b",
-        "1a2794f7-27d1-48e0-8aa8-8b977d337fa7",
-        "6c55e1a8-94ad-443b-9c65-a9bbe8a88328"
-      ]
-    }
-  ]
+  "events": [],
+  "action_stack": []
 }
