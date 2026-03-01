@@ -509,17 +509,52 @@ KIND_META = {
 
 ROSTER_LABEL = {"OFFICE": "Office", "REMOTE": "Remote", "OFF": "Off"}
 
+# FullCalendar styling by kind (requested: roster=blue, public holidays=green)
+KIND_STYLE = {
+    "ROSTER":  {"backgroundColor": "#2563EB", "borderColor": "#2563EB", "textColor": "#FFFFFF"},
+    "HOLIDAY": {"backgroundColor": "#16A34A", "borderColor": "#16A34A", "textColor": "#FFFFFF"},
+    "AL":      {"backgroundColor": "#F97316", "borderColor": "#F97316", "textColor": "#111827"},
+    "AL_MAND": {"backgroundColor": "#DC2626", "borderColor": "#DC2626", "textColor": "#FFFFFF"},
+    "PL":      {"backgroundColor": "#7C3AED", "borderColor": "#7C3AED", "textColor": "#FFFFFF"},
+    "UNPAID":  {"backgroundColor": "#6B7280", "borderColor": "#6B7280", "textColor": "#FFFFFF"},
+    "NOTE":    {"backgroundColor": "#FACC15", "borderColor": "#FACC15", "textColor": "#111827"},
+}
+
+
 def new_event_id() -> str:
     return str(uuid.uuid4())
 
 def to_fullcalendar_event(ev: PlannerEvent) -> Dict:
     meta = KIND_META.get(ev.kind, {"icon": "", "label": ev.kind})
     title = f"{meta.get('icon','')} {ev.title}".strip()
+
+    base_id = (ev.meta or {}).get("base_id", ev.id)
+
     if ev.all_day:
-        return {"id": ev.id, "title": title, "start": ev.start_dt().date().isoformat(), "end": ev.end_dt().date().isoformat(), "allDay": True}
-    return {"id": ev.id, "title": title, "start": ev.start_iso, "end": ev.end_iso, "allDay": False}
+        payload = {
+            "id": ev.id,
+            "title": title,
+            "start": ev.start_dt().date().isoformat(),
+            "end": ev.end_dt().date().isoformat(),
+            "allDay": True,
+            "extendedProps": {"base_id": base_id, "kind": ev.kind},
+        }
+    else:
+        payload = {
+            "id": ev.id,
+            "title": title,
+            "start": ev.start_iso,
+            "end": ev.end_iso,
+            "allDay": False,
+            "extendedProps": {"base_id": base_id, "kind": ev.kind},
+        }
+
+    payload.update(KIND_STYLE.get(ev.kind, {}))
+    return payload
+
 
 def push_action(state: PlannerState, event_ids: List[str]) -> None:
+
     state.action_stack.append({"action_id": new_event_id(), "event_ids": event_ids})
 
 def undo_last_action(state: PlannerState) -> bool:
@@ -627,10 +662,10 @@ st.set_page_config(page_title="Leave Planner", layout="wide")
 state = load_state()
 s = state.settings
 
-st.title("Mirandas Leave/Pay Planner")
+st.title("Mirandas Leave Planner")
 
 with st.sidebar:
-    st.header("Settings")
+    st.header("Core Settings")
 
     region = st.selectbox("Public holiday region", ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT","NZ"],
                           index=["NSW","VIC","QLD","SA","WA","TAS","ACT","NT","NZ"].index(s.region) if s.region in ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT","NZ"] else 0)
@@ -656,9 +691,9 @@ with st.sidebar:
 
     c1, c2 = st.columns(2)
     with c1:
-        ly_start = st.date_input("Leave year start", value=date.fromisoformat(s.leave_year_start) if s.leave_year_start else date(date.today().year,1,1))
+        ly_start = st.date_input("Leave Year Start", value=date.fromisoformat(s.leave_year_start) if s.leave_year_start else date(date.today().year,1,1))
     with c2:
-        ly_end = st.date_input("Leave year end", value=date.fromisoformat(s.leave_year_end) if s.leave_year_end else date(date.today().year,12,31))
+        ly_end = st.date_input("Leave Year End", value=date.fromisoformat(s.leave_year_end) if s.leave_year_end else date(date.today().year,12,31))
     s.leave_year_start = ly_start.isoformat()
     s.leave_year_end = ly_end.isoformat()
 
@@ -666,11 +701,11 @@ with st.sidebar:
 
     emp_start = st.date_input("Employment start date", value=date.fromisoformat(s.employment_start) if s.employment_start else ly_start)
     s.employment_start = emp_start.isoformat()
-    st.caption("Opening balances are treated as of Employment start date.")
+    st.caption("Opening Balances = Employment Start Date.")
 
     st.divider()
 
-    st.subheader("Workday definition")
+    st.subheader("Workday Definition")
     colw1, colw2 = st.columns(2)
     with colw1:
         s.work_start = st.text_input("Work start (HH:MM)", s.work_start)
@@ -682,15 +717,17 @@ with st.sidebar:
 
     st.divider()
 
-    st.subheader("Work Pattern")
+    st.subheader("Weekly Roster Pattern")
     opts = ["OFF","OFFICE","REMOTE"]
     labels = {"OFF": "Off", "OFFICE": "Office", "REMOTE": "Remote"}
     weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    cols = st.columns(7)
+    # Always show roster controls in a vertical list (not columns) for clarity.
     for i, wd in enumerate(weekdays, start=1):
-        with cols[i-1]:
-            cur = s.roster.get(i, "OFF")
-            s.roster[i] = st.selectbox(wd, opts, index=opts.index(cur) if cur in opts else 0, format_func=lambda x: labels[x], key=f"roster_{i}")
+        cur = s.roster.get(i, "OFF")
+        s.roster[i] = st.selectbox(wd, opts,
+                                   index=opts.index(cur) if cur in opts else 0,
+                                   format_func=lambda x: labels[x],
+                                   key=f"roster_{i}")
 
     st.divider()
 
@@ -712,12 +749,12 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Opening Balances")
-    s.al_open_hours = float(st.number_input("Annual leave opening (hours)", value=float(s.al_open_hours), step=0.25))
+    s.al_open_hours = float(st.number_input("A/L opening (hours)", value=float(s.al_open_hours), step=0.25))
     s.pl_open_hours = float(st.number_input("Personal/Carer’s opening (hours)", value=float(s.pl_open_hours), step=0.25))
 
     st.divider()
 
-    st.subheader("Payslip / Earnings (optional)")
+    st.subheader("Payslip / Earnings)")
     s.hourly_rate = float(st.number_input("Hourly rate", value=float(s.hourly_rate), step=0.01))
     s.super_rate = float(st.number_input("Super rate (e.g. 0.12)", value=float(s.super_rate), step=0.005, format="%.3f"))
     s.payg_withheld_per_pay = float(st.number_input("PAYG withheld per pay (optional)", value=float(s.payg_withheld_per_pay), step=1.0))
@@ -733,7 +770,7 @@ with st.sidebar:
         else:
             st.info("Nothing to undo.")
 
-    if st.button("🧹 Clear ALL", use_container_width=True):
+    if st.button("🧹 Clear ALL events", use_container_width=True):
         state.events = []
         state.action_stack = []
         save_state(state)
@@ -748,12 +785,12 @@ with st.sidebar:
 
 ledger = build_daily_ledger(state)
 
-st.subheader("Balance Trend")
+st.subheader("Balance trend")
 trend = ledger[["date_dt","al_balance_h","al_safe_balance_h","pl_balance_h"]].set_index("date_dt")
 st.line_chart(trend)
 
 today = date.today()
-asof_date = st.date_input("As-of date (balances + payslip summary)", value=min(max(today, date.fromisoformat(s.leave_year_start)), date.fromisoformat(s.leave_year_end)))
+asof_date = st.date_input("Jump to date", value=min(max(today, date.fromisoformat(s.leave_year_start)), date.fromisoformat(s.leave_year_end)), key="jump_to")
 asof_row = ledger[ledger["date"] == asof_date.isoformat()]
 if len(asof_row) == 1:
     al_bal = float(asof_row["al_balance_h"].iloc[0])
@@ -765,9 +802,86 @@ else:
     pl_bal = float(ledger["pl_balance_h"].iloc[-1])
 
 m1, m2, m3 = st.columns(3)
-m1.metric("A/L Balance (h)", f"{al_bal:.2f}")
-m2.metric("A/L safe Balance (h)", f"{al_safe:.2f}")
-m3.metric("Personal Leave Balance (h)", f"{pl_bal:.2f}")
+m1.metric("Annual leave balance (h)", f"{al_bal:.2f}")
+m2.metric("Annual SAFE balance (h)", f"{al_safe:.2f}")
+m3.metric("Personal/Carer’s balance (h)", f"{pl_bal:.2f}")
+
+# -------------------------
+# Year-to-date summaries (as-of Jump to date)
+# -------------------------
+leave_year_start = date.fromisoformat(s.leave_year_start)
+ytd_df = ledger[(ledger["date_dt"].dt.date >= leave_year_start) & (ledger["date_dt"].dt.date <= asof_date)].copy()
+
+with st.expander("📊 Year-to-date summary (as-of Jump date)", expanded=False):
+    # Leave Summary
+    al_accrued_ytd = float(ytd_df["al_accrue_h"].sum())
+    al_taken_ytd = float(ytd_df["al_taken_h"].sum())
+    pl_accrued_ytd = float(ytd_df["pl_accrue_h"].sum())
+    pl_taken_ytd = float(ytd_df["pl_taken_h"].sum())
+    unpaid_ytd = float(ytd_df["unpaid_h"].sum())
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("AL accrued (h)", f"{al_accrued_ytd:.2f}")
+    c2.metric("AL taken (h)", f"{al_taken_ytd:.2f}")
+    c3.metric("Carer’s accrued (h)", f"{pl_accrued_ytd:.2f}")
+    c4.metric("Carer’s taken (h)", f"{pl_taken_ytd:.2f}")
+    c5.metric("Unpaid leave (h)", f"{unpaid_ytd:.2f}")
+
+    st.divider()
+
+    # Payslip-style estimate (optional / simplified)
+    if s.pay_anchor_end:
+        period_ends = [d for d in generate_period_ends(s, leave_year_start, asof_date) if d <= asof_date]
+        unpaid_by_date = {pd.to_datetime(r["date"]).date(): float(r["unpaid_h"]) for _, r in ytd_df[["date","unpaid_h"]].iterrows()}
+
+        gross_total = 0.0
+        super_total = 0.0
+        payg_total = 0.0
+        other_total = 0.0
+        net_total = 0.0
+        paid_hours_total = 0.0
+
+        for pe in period_ends:
+            ps = period_start_from_end(s, pe)
+            # Scheduled paid hours (includes public holidays; excludes roster OFF days)
+            scheduled_hours = 0.0
+            unpaid_hours = 0.0
+            for d in iter_dates(ps, pe):
+                if not employment_active(s, d):
+                    continue
+                if s.roster.get(d.isoweekday(), "OFF") == "OFF":
+                    continue
+                scheduled_hours += s.hours_per_workday
+                unpaid_hours += float(unpaid_by_date.get(d, 0.0))
+
+            paid_hours = max(0.0, scheduled_hours - unpaid_hours)
+            paid_hours_total += paid_hours
+
+            gross = paid_hours * float(s.hourly_rate)
+            super_amt = gross * float(s.super_rate)
+            payg = float(s.payg_withheld_per_pay)
+            other = float(s.other_deductions_per_pay)
+            net = gross - payg - other
+
+            gross_total += gross
+            super_total += super_amt
+            payg_total += payg
+            other_total += other
+            net_total += net
+
+        st.subheader("Payslip Estimate")
+        st.caption("This is an estimate using your rostered paid hours minus unpaid leave hours. Leave types (AL/Carer’s) are treated as paid time.")
+        p1, p2, p3, p4, p5 = st.columns(5)
+        p1.metric("Pay periods", str(len(period_ends)))
+        p2.metric("Paid hours", f"{paid_hours_total:.2f}")
+        p3.metric("Gross ($)", f"{gross_total:,.2f}")
+        p4.metric("Net ($)", f"{net_total:,.2f}")
+        p5.metric("Super ($)", f"{super_total:,.2f}")
+
+        st.caption(f"PAYG withheld per pay: ${float(s.payg_withheld_per_pay):,.2f} | Other deductions per pay: ${float(s.other_deductions_per_pay):,.2f}")
+    else:
+        st.caption("Set **Pay period END** in the sidebar to enable the payslip estimate.")
+
 
 st.divider()
 
@@ -794,19 +908,68 @@ if show_roster:
         end = start + timedelta(days=1)
         roster_events.append(PlannerEvent(id=f"roster_{d.isoformat()}", title=ROSTER_LABEL.get(tag, tag), kind="ROSTER", start_iso=start.isoformat(), end_iso=end.isoformat(), all_day=True))
 
-fc_events = [to_fullcalendar_event(e) for e in (holiday_events + roster_events + state.events)]
+# Render events for calendar:
+# - Public holidays + roster overlay
+# - Your entries, with leave periods expanded into daily tiles showing the deducted hours per day (e.g. "Skiing -7" or "Skiing -0")
+rendered: List[PlannerEvent] = []
 
-cA, cB, cC = st.columns([1.2, 1.2, 1.6])
-with cA:
-    view = st.selectbox("Calendar view", ["dayGridMonth", "timeGridWeek", "timeGridDay"], index=0)
+rendered.extend(holiday_events)
+rendered.extend(roster_events)
+
+for ev in state.events:
+    if ev.kind in {"AL", "AL_MAND", "PL", "UNPAID"} and ev.all_day:
+        span = event_span_dates(s, ev, d0, d1)
+        if span:
+            span_start, span_end = span
+            for d in iter_dates(span_start, span_end):
+                # Show the entire period on the calendar, but deduct 0 on public holidays / non-workdays.
+                if d in hols:
+                    h = 0.0
+                else:
+                    h = event_leave_hours_on_day(s, ev, d)
+                # Prefer whole-hour display (e.g. 7 not 7.0)
+                h_disp = int(round(h)) if abs(h - round(h)) < 1e-6 else round(h, 2)
+                start = datetime.combine(d, time(0, 0)).replace(tzinfo=tz)
+                end = start + timedelta(days=1)
+                rendered.append(
+                    PlannerEvent(
+                        id=f"{ev.id}__{d.isoformat()}",
+                        title=f"{ev.title} -{h_disp}",
+                        kind=ev.kind,
+                        start_iso=start.isoformat(),
+                        end_iso=end.isoformat(),
+                        all_day=True,
+                        meta={"base_id": ev.id, "render_day": d.isoformat()},
+                    )
+                )
+        else:
+            rendered.append(ev)
+    else:
+        rendered.append(ev)
+
+fc_events = [to_fullcalendar_event(e) for e in rendered]
+
+
+# Calendar controls
+if "lp_view" not in st.session_state:
+    st.session_state.lp_view = "dayGridMonth"
+
+cB, cC = st.columns([1.2, 1.8])
 with cB:
-    initial_date = st.date_input("Jump to date", value=asof_date, key="jump_to")
+    initial_date = st.session_state.get("jump_to", asof_date)
+    st.caption(f"Jump date: {initial_date.strftime('%d/%m/%Y')}")
 with cC:
-    st.caption("Week view: drag-select hours for partial leave / notes.")
+    st.caption("Use the Month / Week / Day buttons on the calendar header. Week view: drag-select hours for partial leave / notes.")
+
+view = st.session_state.lp_view
 
 cal_options = {
     "initialView": view,
     "initialDate": initial_date.isoformat(),
+    "locale": "en-au",
+    # Ensure day/month/year ordering in titles/headers
+    "titleFormat": {"year": "numeric", "month": "long", "day": "2-digit"},
+    "dayHeaderFormat": {"weekday": "short", "day": "2-digit", "month": "2-digit"},
     "height": 760,
     "selectable": True,
     "editable": False,
@@ -817,6 +980,11 @@ cal_options = {
     "nowIndicator": True,
 }
 cal_state = calendar(events=fc_events, options=cal_options, key="calendar")
+
+# Persist the last selected calendar view (month/week/day) across reruns
+if isinstance(cal_state, dict) and isinstance(cal_state.get("view"), str):
+    st.session_state.lp_view = cal_state["view"]
+
 
 st.divider()
 
@@ -898,7 +1066,15 @@ if cal_state and cal_state.get("select"):
 
 if cal_state and cal_state.get("eventClick"):
     ev_id = cal_state["eventClick"]["event"]["id"]
-    match = next((e for e in state.events if e.id == ev_id), None)
+    # Leave periods are rendered as per-day tiles with an id suffix; map clicks back to the base event id.
+    base_id = ev_id
+    try:
+        base_id = cal_state["eventClick"]["event"].get("extendedProps", {}).get("base_id") or base_id
+    except Exception:
+        pass
+    if "__" in base_id:
+        base_id = base_id.split("__", 1)[0]
+    match = next((e for e in state.events if e.id == base_id), None)
     st.subheader("Clicked event")
     if match:
         st.info(f"Selected: **{KIND_META.get(match.kind,{}).get('label', match.kind)}** — **{match.title}**")
@@ -928,22 +1104,78 @@ if cal_state and cal_state.get("eventClick"):
 
 st.divider()
 
-st.header("List view (your entries)")
+st.header("List Of Your Entries")
 if state.events:
+    def _fmt_date(d: date) -> str:
+        return d.strftime("%d/%m/%Y")
+
+    def _fmt_dt(dt: datetime) -> str:
+        return dt.strftime("%d/%m/%Y %H:%M")
+
     rows = []
     for ev in state.events:
+        ev0 = ev.start_dt().astimezone(tz)
+        ev1 = ev.end_dt().astimezone(tz)
+
+        if ev.all_day:
+            # end_iso is exclusive for all-day events
+            end_incl = (ev1.date() - timedelta(days=1))
+            start_disp = _fmt_date(ev0.date())
+            end_disp = _fmt_date(end_incl)
+        else:
+            start_disp = _fmt_dt(ev0)
+            end_disp = _fmt_dt(ev1)
+
+        TYPE_SHORT = {
+            "AL": "AL",
+            "AL_MAND": "AL mandatory",
+            "PL": "Carer’s",
+            "UNPAID": "Unpaid",
+            "NOTE": "Note",
+        }
+        base_short = TYPE_SHORT.get(ev.kind, ev.kind)
+        if ev.kind in {"AL", "AL_MAND", "PL", "UNPAID"}:
+            type_disp = f"{base_short} period" if ev.all_day else f"{base_short} hours"
+        else:
+            type_disp = base_short
+
+        deducted_h = 0.0
+        deducted_days = 0
+        non_deducted_days = 0
+        holiday_days = 0
+
+        span = event_span_dates(s, ev, d0, d1)
+        if ev.kind in {"AL", "AL_MAND", "PL", "UNPAID"} and span:
+            span_start, span_end = span
+            for d in iter_dates(span_start, span_end):
+                if d in hols:
+                    holiday_days += 1
+                    h = 0.0
+                else:
+                    h = event_leave_hours_on_day(s, ev, d)
+
+                if h > 1e-9:
+                    deducted_h += h
+                    deducted_days += 1
+                else:
+                    non_deducted_days += 1
+
         rows.append({
             "title": ev.title,
-            "type": ev.kind,
-            "start": ev.start_dt().astimezone(tz).isoformat(),
-            "end": ev.end_dt().astimezone(tz).isoformat(),
+            "type": type_disp,
+            "start": start_disp,
+            "end": end_disp,
             "all_day": ev.all_day,
+            "deducted_h": round(deducted_h, 2),
+            "deducted_days": deducted_days,
+            "non_deducted_days": non_deducted_days,
+            "holiday_days": holiday_days,
         })
-    df_events = pd.DataFrame(rows).sort_values("start")
+
+    df_events = pd.DataFrame(rows).sort_values(["start", "title"])
     st.dataframe(df_events, use_container_width=True, hide_index=True)
 else:
     st.caption("No entries yet. Use Quick add or select on the calendar.")
-
 st.header("Exports")
 x1, x2, x3 = st.columns([1.1, 1.1, 1.8])
 with x1:
@@ -1000,7 +1232,7 @@ else:
 
 st.divider()
 
-st.header("Google Calendar sync (optional)")
+st.header("Google Calendar sync")
 if not gcal_available():
     st.warning("Google Calendar dependencies not available. Install requirements.")
 else:
