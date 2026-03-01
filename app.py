@@ -627,10 +627,10 @@ st.set_page_config(page_title="Leave Planner", layout="wide")
 state = load_state()
 s = state.settings
 
-st.title("Leave Planner — rostered workdays, pay-period accrual, hourly leave, public holidays")
+st.title("Mirandas Leave/Pay Planner")
 
 with st.sidebar:
-    st.header("Core settings")
+    st.header("Settings")
 
     region = st.selectbox("Public holiday region", ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT","NZ"],
                           index=["NSW","VIC","QLD","SA","WA","TAS","ACT","NT","NZ"].index(s.region) if s.region in ["NSW","VIC","QLD","SA","WA","TAS","ACT","NT","NZ"] else 0)
@@ -682,7 +682,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.subheader("Weekly roster pattern")
+    st.subheader("Work Pattern")
     opts = ["OFF","OFFICE","REMOTE"]
     labels = {"OFF": "Off", "OFFICE": "Office", "REMOTE": "Remote"}
     weekdays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
@@ -711,13 +711,13 @@ with st.sidebar:
 
     st.divider()
 
-    st.subheader("Opening balances")
+    st.subheader("Opening Balances")
     s.al_open_hours = float(st.number_input("Annual leave opening (hours)", value=float(s.al_open_hours), step=0.25))
     s.pl_open_hours = float(st.number_input("Personal/Carer’s opening (hours)", value=float(s.pl_open_hours), step=0.25))
 
     st.divider()
 
-    st.subheader("Payslip / earnings (optional)")
+    st.subheader("Payslip / Earnings (optional)")
     s.hourly_rate = float(st.number_input("Hourly rate", value=float(s.hourly_rate), step=0.01))
     s.super_rate = float(st.number_input("Super rate (e.g. 0.12)", value=float(s.super_rate), step=0.005, format="%.3f"))
     s.payg_withheld_per_pay = float(st.number_input("PAYG withheld per pay (optional)", value=float(s.payg_withheld_per_pay), step=1.0))
@@ -733,7 +733,7 @@ with st.sidebar:
         else:
             st.info("Nothing to undo.")
 
-    if st.button("🧹 Clear ALL events", use_container_width=True):
+    if st.button("🧹 Clear ALL", use_container_width=True):
         state.events = []
         state.action_stack = []
         save_state(state)
@@ -748,7 +748,7 @@ with st.sidebar:
 
 ledger = build_daily_ledger(state)
 
-st.subheader("Balance trend")
+st.subheader("Balance Trend")
 trend = ledger[["date_dt","al_balance_h","al_safe_balance_h","pl_balance_h"]].set_index("date_dt")
 st.line_chart(trend)
 
@@ -765,9 +765,9 @@ else:
     pl_bal = float(ledger["pl_balance_h"].iloc[-1])
 
 m1, m2, m3 = st.columns(3)
-m1.metric("Annual leave balance (h)", f"{al_bal:.2f}")
-m2.metric("Annual SAFE balance (h)", f"{al_safe:.2f}")
-m3.metric("Personal/Carer’s balance (h)", f"{pl_bal:.2f}")
+m1.metric("A/L Balance (h)", f"{al_bal:.2f}")
+m2.metric("A/L safe Balance (h)", f"{al_safe:.2f}")
+m3.metric("Personal Leave Balance (h)", f"{pl_bal:.2f}")
 
 st.divider()
 
